@@ -211,6 +211,9 @@ async def process_message_handler(message: Message) -> None:
                     "category": tx.get("category"),
                     "merchant": tx.get("merchant"),
                     "date_transaction": tx_date,
+                    "payment_method": tx.get("payment_method"),
+                    "is_fixed": tx.get("is_fixed", False),
+                    "is_client_expense": tx.get("is_client_expense", False),
                     "source": "telegram_manual",
                 }).execute()
                 

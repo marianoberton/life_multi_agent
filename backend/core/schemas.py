@@ -14,12 +14,23 @@ class FinanceEntry(BaseModel):
     """Structured data for financial transactions."""
     amount: float = Field(description="The numeric amount of the transaction.")
     currency: str = Field(default="ARS", description="Currency code (e.g., ARS, USD). Defaults to ARS.")
-    category: Literal["Supermercado", "Servicios", "Transporte", "Ocio", "Salud", "Vivienda", "Educación", "Otros"] = Field(
-        description="Category of the expense. MUST be one of: Supermercado, Servicios, Transporte, Ocio, Salud, Vivienda, Educación, Otros."
-    )
-    merchant: Optional[str] = Field(None, description="Name of the merchant or entity (e.g., Coto, Shell, Edesur). If not explicit, infer a generic one (e.g., 'Estación de Servicio' for gas).")
+    
+    category: Literal[
+        "Ingreso: Sueldo", "Ingreso: Alquiler", "Ingreso: Freelance",
+        "Vivienda: Depto", "Vehículo: Auto", "Vehículo: Moto", "Educación: Data Science", "Servicios",
+        "Supermercado", "Salidas/Ocio", "Suscripciones", "Salud", "Otros"
+    ] = Field(description="Category of the transaction. Must match exactly one of the provided options.")
+    
+    payment_method: Literal[
+        "Efectivo", "Débito", "Crédito: Visa", "Crédito: Master", "Crédito: Amex", "Transferencia"
+    ] = Field(default="Efectivo", description="Payment method used. Defaults to 'Efectivo' if unclear, or 'Crédito: Visa' if 'tarjeta' is mentioned.")
+    
+    merchant: Optional[str] = Field(None, description="Name of the merchant or entity (e.g., Coto, Shell). Infer generic if needed.")
     item: Optional[str] = Field(None, description="Description of the item or service purchased.")
     date: Optional[str] = Field(None, description="Date of the transaction (YYYY-MM-DD).")
+    
+    is_fixed: bool = Field(default=False, description="True if this is a recurring fixed expense (e.g. rent, subscription).")
+    is_client_expense: bool = Field(default=False, description="True if this expense is on behalf of a client.")
 
 class FinanceBatch(BaseModel):
     """List of financial transactions extracted from a document."""

@@ -1,18 +1,16 @@
 import os
-from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from dotenv import load_dotenv
 
 # Import schemas
-from backend.core.schemas import (
-    RoutingDecision,
-    FinanceEntry,
-    FinanceBatch,
-    HealthEntry,
-    JournalEntry
-)
+from backend.core.schemas import RoutingDecision
+
+# Import Sub-Agents
+from backend.agents.finance_agent import FinanceAgent
+from backend.agents.health_agent import HealthAgent
+from backend.agents.journal_agent import JournalAgent
 
 load_dotenv()
 
@@ -35,30 +33,33 @@ class LifeOSBrain:
             api_key=self.api_key
         )
 
+        # Initialize Sub-Agents
+        self.finance_agent = FinanceAgent(self.llm)
+        self.health_agent = HealthAgent(self.llm)
+        self.journal_agent = JournalAgent(self.llm)
+
     def generate_embedding(self, text: str) -> List[float]:
         """Generates a vector embedding for the given text."""
         return self.embeddings.embed_query(text)
 
     def process_input(self, text: str) -> Dict[str, Any]:
         """
-        Main entry point. Routes the input and extracts structured data.
+        Main entry point. Routes the input and delegates to specialized agents.
         """
         # 1. Routing Step
         router_result = self._route_input(text)
         category = router_result.category
         confidence = router_result.confidence
 
-        # If confidence is low, we might want to flag it (optional logic)
-        # For now, we trust the category unless it's explicitly "OTHER"
-        
         extracted_data = None
         
+        # 2. Delegation Step
         if category == "FINANCE":
-            extracted_data = self._extract_finance(text)
+            extracted_data = self.finance_agent.process(text)
         elif category == "HEALTH":
-            extracted_data = self._extract_health(text)
+            extracted_data = self.health_agent.process(text)
         elif category == "JOURNAL":
-            extracted_data = self._extract_journal(text)
+            extracted_data = self.journal_agent.process(text)
         else:
             # Category is OTHER
             category = "OTHER"
@@ -94,87 +95,6 @@ class LifeOSBrain:
         ])
         
         structured_llm = self.llm.with_structured_output(RoutingDecision)
-        chain = prompt | structured_llm
-        
-        return chain.invoke({"input": text})
-
-    def _extract_finance(self, text: str) -> FinanceBatch:
-        """Extracts a LIST of finance transactions."""
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        system_prompt = f"""You are an expert accountant. Extract ALL financial transactions from the text.
-        
-        RULES:
-        1. **Multiple Expenses**: The user might list multiple expenses in one sentence. Extract each as a separate entry.
-        2. **Date**: Today is {today_str}. Use this to resolve relative dates (e.g., "ayer", "hoy").
-        3. **Currency**: Default to 'ARS' unless specified otherwise.
-        4. **Categories**: You MUST map each expense to one of these exact categories:
-           - 'Supermercado' (Groceries, food shopping)
-           - 'Servicios' (Utilities like electricity, gas, internet, phone)
-           - 'Transporte' (Gas/Nafta, Uber, Taxi, Public transport, Tolls)
-           - 'Ocio' (Restaurants, Movies, Going out)
-           - 'Salud' (Pharmacy, Doctors, Gym, Sports)
-           - 'Vivienda' (Rent, Condo fees/Expensas)
-           - 'Educación' (Courses, Books, Tuition)
-           - 'Otros' (Anything else)
-        5. **Merchant Inference**: 
-           - If the merchant is explicitly named (e.g. "Coto", "Shell"), use it.
-           - If NOT named, INFER a generic entity based on context.
-             - "luz" -> "Servicios Eléctricos"
-             - "gas" -> "Distribuidora de Gas"
-             - "nafta" -> "Estación de Servicio"
-             - "alfajor" -> "Kiosco" or "Tienda"
-           - NEVER use "Desconocido" or concatenate words randomly.
-        
-        Return a 'transactions' list containing all detected items.
-        """
-        
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("human", "{input}")
-        ])
-        
-        structured_llm = self.llm.with_structured_output(FinanceBatch)
-        chain = prompt | structured_llm
-        
-        return chain.invoke({"input": text})
-
-    def _extract_health(self, text: str) -> HealthEntry:
-        """Extracts health, workout OR meal details."""
-        system_prompt = """Extract health, workout, or nutrition details.
-        
-        IF IT IS A MEAL:
-        - Set 'activity_type' to 'meal'.
-        - In 'details_json', try to extract: 'food_items' (list), 'calories_est' (int), 'meal_time' (breakfast/lunch/dinner).
-        
-        IF IT IS A WORKOUT:
-        - Set 'activity_type' to 'workout'.
-        - In 'details_json', extract exercises, sets, reps, weight.
-        """
-        
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("human", "{input}")
-        ])
-        
-        structured_llm = self.llm.with_structured_output(HealthEntry)
-        chain = prompt | structured_llm
-        
-        return chain.invoke({"input": text})
-
-    def _extract_journal(self, text: str) -> JournalEntry:
-        """Extracts journal and mood details."""
-        system_prompt = """Analyze the text for a journal entry.
-        - Estimate a 'mood_score' from 1 (terrible) to 10 (amazing) based on the sentiment.
-        - Generate a list of 'sentiment_tags' (3-5 tags).
-        - 'reflection_summary' should be the refined content of the user's thought.
-        """
-        
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("human", "{input}")
-        ])
-        
-        structured_llm = self.llm.with_structured_output(JournalEntry)
         chain = prompt | structured_llm
         
         return chain.invoke({"input": text})
