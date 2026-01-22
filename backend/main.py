@@ -205,15 +205,21 @@ async def process_message_handler(message: Message) -> None:
                 if not tx_date or str(tx_date).lower() in ["none", "null"]:
                     tx_date = datetime.now().strftime("%Y-%m-%d")
 
+                installments = tx.get("installments") or {}
+
                 supabase.table("finance_transactions").insert({
                     "amount": tx.get("amount"),
                     "currency": tx.get("currency", "ARS"),
                     "category": tx.get("category"),
+                    "subcategory": tx.get("subcategory"),
                     "merchant": tx.get("merchant"),
                     "date_transaction": tx_date,
                     "payment_method": tx.get("payment_method"),
                     "is_fixed": tx.get("is_fixed", False),
                     "is_client_expense": tx.get("is_client_expense", False),
+                    "installment_current": installments.get("current"),
+                    "installment_total": installments.get("total"),
+                    "original_desc": tx.get("item"),
                     "source": "telegram_manual",
                 }).execute()
                 

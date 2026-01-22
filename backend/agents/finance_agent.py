@@ -15,10 +15,17 @@ class FinanceAgent:
         - ACTIVOS: Tiene un Departamento, un Auto y una Moto. 
         - INGRESOS: Sueldo fijo, Alquileres (variable) y Freelance (variable). 
         - EDUCACIÓN: Estudia Data Science (gastos académicos). 
-        - CLIENTES: A veces paga suscripciones para clientes (detectar contexto y marcar `is_client_expense=True`). 
+        - CLIENTES: A veces paga suscripciones o gastos para clientes (detectar contexto y marcar `is_client_expense=True`). 
         - PAGOS: Usa Visa, Master y Amex. Si dice 'tarjeta' sin especificar, asume 'Crédito: Visa'. 
         - REGLA: Extrae TODAS las transacciones del texto (pueden ser varias). Si menciona USD, usa moneda 'USD'.
         - FECHA: Hoy es {today_str}. Úsalo para resolver fechas relativas.
+        - SUBCATEGORÍA: Extrae detalles específicos en `subcategory` (ej: si es Auto -> Nafta/Seguro/Patente; si es Depto -> Expensas/ABL).
+        
+        **CUOTAS (IMPORTANTE):**
+        - Si el usuario menciona "12 cuotas de $5000" o "Cuota 3/12", extrae esa información en el campo `installments`.
+        - El `amount` registrado debe ser EL VALOR DE LA CUOTA (lo que impacta el cashflow este mes), no el total de la compra.
+        - Ejemplo: "Compré una TV de 120.000 en 12 cuotas" -> amount=10000, installments={{'current': 1, 'total': 12}}.
+        - Recuerda que estamos registrando el flujo de caja del mes actual.
 
         Categorías válidas (Strict):
         - Ingresos: "Ingreso: Sueldo", "Ingreso: Alquiler", "Ingreso: Freelance".

@@ -5,8 +5,13 @@ export interface Transaction {
   amount: number;
   currency: 'ARS' | 'USD' | string | null;
   category: string | null;
+  subcategory: string | null;
   merchant: string | null;
+  payment_method: string | null;
   is_fixed: boolean | null;
+  is_client_expense: boolean | null;
+  installment_current: number | null;
+  installment_total: number | null;
   source: string | null;
 }
 

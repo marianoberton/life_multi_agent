@@ -1,4 +1,4 @@
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict
 from pydantic import BaseModel, Field
 
 # --- Enums ---
@@ -21,6 +21,8 @@ class FinanceEntry(BaseModel):
         "Supermercado", "Salidas/Ocio", "Suscripciones", "Salud", "Otros"
     ] = Field(description="Category of the transaction. Must match exactly one of the provided options.")
     
+    subcategory: Optional[str] = Field(None, description="Specific subcategory (e.g., Nafta, Expensas, Cena, Seguro).")
+
     payment_method: Literal[
         "Efectivo", "Débito", "Crédito: Visa", "Crédito: Master", "Crédito: Amex", "Transferencia"
     ] = Field(default="Efectivo", description="Payment method used. Defaults to 'Efectivo' if unclear, or 'Crédito: Visa' if 'tarjeta' is mentioned.")
@@ -31,6 +33,12 @@ class FinanceEntry(BaseModel):
     
     is_fixed: bool = Field(default=False, description="True if this is a recurring fixed expense (e.g. rent, subscription).")
     is_client_expense: bool = Field(default=False, description="True if this expense is on behalf of a client.")
+
+    # Installment support
+    installments: Optional[Dict[str, int]] = Field(
+        None, 
+        description="If it's an installment plan, provide {'current': int, 'total': int}. Example: {'current': 1, 'total': 12}"
+    )
 
 class FinanceBatch(BaseModel):
     """List of financial transactions extracted from a document."""
